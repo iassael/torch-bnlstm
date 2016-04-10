@@ -45,13 +45,13 @@ function nn.LSTM(rnn_size, input_size, use_bn)
     local in_gate = nn.Sigmoid()(sum_splits[1])
     local forget_gate = nn.Sigmoid()(sum_splits[2])
     local out_gate = nn.Sigmoid()(sum_splits[3])
-    local in_transform = nn.Tanh()(c_bn(sum_splits[4]))
+    local in_transform = nn.Tanh()(sum_splits[4])
 
     local next_c = nn.CAddTable()({
         nn.CMulTable()({ forget_gate, prev_c }),
         nn.CMulTable()({ in_gate, in_transform })
     })
-    local next_h = nn.CMulTable()({ out_gate, nn.Tanh()(next_c) })
+    local next_h = nn.CMulTable()({ out_gate, nn.Tanh()(c_bn(next_c)) })
     local next_state = nn.Identity() { next_c, next_h }
 
     nngraph.annotateNodes()
