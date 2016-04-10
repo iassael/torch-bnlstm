@@ -4,15 +4,17 @@
     Tim Cooijmans, Nicolas Ballas, César Laurent, Çağlar Gülçehre, Aaron Courville
     http://arxiv.org/abs/1603.09025
 
-    Implemented by Yannis M. Assael (www.yannisassael.com), 2016
+    Implemented by Yannis M. Assael (www.yannisassael.com), 2016.
 
-    Based on https://github.com/wojciechz/learning_to_execute
+    Based on https://github.com/wojciechz/learning_to_execute 
+    and Brendan Shillingford.
 
     Usage: 
     local rnn = nn.LSTM(rnn_size, input_size, use_bn)
     
 ]]--
 
+require 'nn'
 require 'nngraph'
 require 'LinearNB'
 
