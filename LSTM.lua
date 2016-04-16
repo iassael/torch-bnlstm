@@ -6,11 +6,13 @@
 
     Implemented by Yannis M. Assael (www.yannisassael.com), 2016.
 
-    Based on https://github.com/wojciechz/learning_to_execute 
+    Based on
+    https://github.com/wojciechz/learning_to_execute,
+    https://github.com/karpathy/char-rnn/blob/master/model/LSTM.lua,
     and Brendan Shillingford.
 
     Usage: 
-    local rnn = nn.LSTM(rnn_size, input_size, use_bn)
+    local rnn = nn.LSTM(input_size, rnn_size, n, dropout, bn)
     
 ]]--
 
@@ -18,46 +20,72 @@ require 'nn'
 require 'nngraph'
 require 'LinearNB'
 
-function nn.LSTM(rnn_size, input_size, use_bn)
-    if not input_size then
-        input_size = rnn_size
+local LSTM = {}
+function LSTM.lstm(input_size, rnn_size, n, dropout, bn)
+    dropout = dropout or 0
+
+    -- there will be 2*n+1 inputs
+    local inputs = {}
+    table.insert(inputs, nn.Identity()()) -- x
+    for L = 1, n do
+        table.insert(inputs, nn.Identity()()) -- prev_c[L]
+        table.insert(inputs, nn.Identity()()) -- prev_h[L]
     end
 
-    local wx_bn, wh_bn, c_bn
-    if use_bn then
-        wx_bn = nn.BatchNormalization(4 * rnn_size)
-        wh_bn = nn.BatchNormalization(4 * rnn_size)
-        c_bn = nn.BatchNormalization(rnn_size)
-    else
-        wx_bn = nn.Identity()
-        wh_bn = nn.Identity()
-        c_bn = nn.Identity()
+    local x, input_size_L
+    local outputs = {}
+    for L = 1, n do
+        -- c,h from previos timesteps
+        local prev_h = inputs[L * 2 + 1]
+        local prev_c = inputs[L * 2]
+        -- the input to this layer
+        if L == 1 then
+            x = OneHot(input_size)(inputs[1])
+            input_size_L = input_size
+        else
+            x = outputs[(L - 1) * 2]
+            if dropout > 0 then x = nn.Dropout(dropout)(x) end -- apply dropout, if any
+            input_size_L = rnn_size
+        end
+        -- batch normalization
+        local wx_bn, wh_bn, c_bn
+        if bn then
+            wx_bn = nn.BatchNormalization(4 * rnn_size)
+            wh_bn = nn.BatchNormalization(4 * rnn_size)
+            c_bn = nn.BatchNormalization(rnn_size)
+        else
+            wx_bn = nn.Identity()
+            wh_bn = nn.Identity()
+            c_bn = nn.Identity()
+        end
+        -- evaluate the input sums at once for efficiency
+        local i2h = wx_bn(nn.Linear(input_size_L, 4 * rnn_size)(x):annotate { name = 'i2h_' .. L })
+        local h2h = wh_bn(nn.LinearNB(rnn_size, 4 * rnn_size)(prev_h):annotate { name = 'h2h_' .. L })
+        local all_input_sums = nn.CAddTable()({ i2h, h2h })
+
+        local reshaped = nn.Reshape(4, rnn_size)(all_input_sums)
+        local n1, n2, n3, n4 = nn.SplitTable(2)(reshaped):split(4)
+        -- decode the gates
+        local in_gate = nn.Sigmoid()(n1)
+        local forget_gate = nn.Sigmoid()(n2)
+        local out_gate = nn.Sigmoid()(n3)
+        -- decode the write inputs
+        local in_transform = nn.Tanh()(n4)
+        -- perform the LSTM update
+        local next_c = nn.CAddTable()({
+            nn.CMulTable()({ forget_gate, prev_c }),
+            nn.CMulTable()({ in_gate, in_transform })
+        })
+        -- gated cells form the output
+        local next_h = nn.CMulTable()({ out_gate, nn.Tanh()(c_bn(next_c)) })
+
+        table.insert(outputs, next_c)
+        table.insert(outputs, next_h)
     end
-
-    local x = nn.Identity()()
-    local prev_state = nn.Identity()()
-    local prev_c, prev_h = prev_state:split(2)
-
-    local x_all = nn.View(rnn_size, 4):setNumInputDims(1)(wx_bn(nn.LinearNB(input_size, 4 * rnn_size)(x)))
-
-    local h_all = nn.View(rnn_size, 4):setNumInputDims(1)(wh_bn(nn.Linear(rnn_size, 4 * rnn_size)(prev_h)))
-
-    local sum_all = nn.CAddTable() { x_all, h_all }
-    local sum_splits = { nn.SplitTable(2, 2)(sum_all):split(4) }
-    local in_gate = nn.Sigmoid()(sum_splits[1])
-    local forget_gate = nn.Sigmoid()(sum_splits[2])
-    local out_gate = nn.Sigmoid()(sum_splits[3])
-    local in_transform = nn.Tanh()(sum_splits[4])
-
-    local next_c = nn.CAddTable()({
-        nn.CMulTable()({ forget_gate, prev_c }),
-        nn.CMulTable()({ in_gate, in_transform })
-    })
-    local next_h = nn.CMulTable()({ out_gate, nn.Tanh()(c_bn(next_c)) })
-    local next_state = nn.Identity() { next_c, next_h }
 
     nngraph.annotateNodes()
 
-    return nn.gModule({ x, prev_state }, { next_h, next_state })
+    return nn.gModule(inputs, outputs)
 end
 
+return LSTM
