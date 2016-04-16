@@ -8,7 +8,14 @@ Tim Cooijmans, Nicolas Ballas, César Laurent, Çağlar Gülçehre, Aaron Courvi
 ### Usage
 `local rnn = nn.LSTM(input_size, rnn_size, n, dropout, bn)`
 
-Implemented in Torch by Yannis M. Assael (www.yannisassael.com)
+n = number of layers (1-N)
+
+dropout = probability of dropping a neuron (0-1)
+
+bn = batch normalization (true, false)
 
 ### Example
 [https://github.com/iassael/char-rnn](https://github.com/iassael/char-rnn)
+
+
+Implemented in Torch by Yannis M. Assael (www.yannisassael.com)
