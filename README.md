@@ -6,7 +6,7 @@ Tim Cooijmans, Nicolas Ballas, César Laurent, Çağlar Gülçehre, Aaron Courvi
 [http://arxiv.org/abs/1603.09025](http://arxiv.org/abs/1603.09025)
 
 ### Usage
-`local rnn = nn.LSTM(input_size, rnn_size, n, dropout, bn)`
+`local rnn = LSTM(input_size, rnn_size, n, dropout, bn)`
 
 n = number of layers (1-N)
 

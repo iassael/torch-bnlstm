@@ -12,16 +12,14 @@
     and Brendan Shillingford.
 
     Usage: 
-    local rnn = nn.LSTM(input_size, rnn_size, n, dropout, bn)
+    local rnn = LSTM(input_size, rnn_size, n, dropout, bn)
     
 ]]--
 
 require 'nn'
 require 'nngraph'
-require 'LinearNB'
 
-local LSTM = {}
-function LSTM.lstm(input_size, rnn_size, n, dropout, bn)
+local function LSTM(input_size, rnn_size, n, dropout, bn)
     dropout = dropout or 0
 
     -- there will be 2*n+1 inputs
@@ -61,7 +59,7 @@ function LSTM.lstm(input_size, rnn_size, n, dropout, bn)
         end
         -- evaluate the input sums at once for efficiency
         local i2h = bn_wx(nn.Linear(input_size_L, 4 * rnn_size)(x):annotate { name = 'i2h_' .. L }):annotate { name = 'bn_wx_' .. L }
-        local h2h = bn_wh(nn.LinearNB(rnn_size, 4 * rnn_size)(prev_h):annotate { name = 'h2h_' .. L }):annotate { name = 'bn_wh_' .. L }
+        local h2h = bn_wh(nn.Linear(rnn_size, 4 * rnn_size, false)(prev_h):annotate { name = 'h2h_' .. L }):annotate { name = 'bn_wh_' .. L }
         local all_input_sums = nn.CAddTable()({ i2h, h2h })
 
         local reshaped = nn.Reshape(4, rnn_size)(all_input_sums)
