@@ -11,9 +11,9 @@
     https://github.com/karpathy/char-rnn/blob/master/model/LSTM.lua,
     and Brendan Shillingford.
 
-    Usage: 
+    Usage:
     local rnn = LSTM(input_size, rnn_size, n, dropout, bn)
-    
+
 ]]--
 
 require 'nn'
@@ -38,7 +38,7 @@ local function LSTM(input_size, rnn_size, n, dropout, bn)
         local prev_c = inputs[L * 2]
         -- the input to this layer
         if L == 1 then
-            x = OneHot(input_size)(inputs[1])
+            x = inputs[1]
             input_size_L = input_size
         else
             x = outputs[(L - 1) * 2]
